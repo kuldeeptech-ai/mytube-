@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT Music</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{margin:0;font-family:system-ui;background:#0b0b0b;color:#fff}
+
+/* HEADER */
+header{
+  display:flex;align-items:center;
+  padding:12px;background:#141414;
+  position:sticky;top:0;z-index:10
+}
+.logo{color:red;font-weight:700;font-size:18px}
+
+/* PLAYER */
+#playerBox{
+  max-width:900px;
+  margin:14px auto;
+  border-radius:26px;
+  overflow:hidden;
+  display:none;
+  position:relative;
+}
+#playerBox iframe{
+  width:100%;
+  aspect-ratio:16/9;
+  border:0;
+}
+
+/* MINI PLAYER */
+#playerBox.mini{
+  position:fixed;
+  bottom:90px;
+  right:16px;
+  width:280px;
+  z-index:50;
+  box-shadow:0 0 20px rgba(0,0,0,.8);
+}
+
+/* MINI CONTROLS */
+.mini-controls{
+  position:absolute;
+  top:6px;
+  right:6px;
+  display:flex;
+  gap:6px;
+  z-index:60;
+}
+.mini-controls button{
+  background:rgba(0,0,0,.6);
+  border:none;
+  color:#fff;
+  border-radius:50%;
+  width:28px;
+  height:28px;
+  cursor:pointer;
+}
+
+/* FEEDS */
+.feed{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:14px;
+  padding:12px;
+}
+.card{
+  background:#141414;
+  border:1px solid #333;
+  border-radius:16px;
+  padding:8px;
+  cursor:pointer;
+}
+.card img{width:100%;border-radius:12px}
+.card span{display:block;font-size:13px;margin-top:6px}
+
+/* SEARCH PAGE */
+#searchPage{display:none}
+.search-box{
+  display:flex;gap:8px;padding:12px
+}
+.search-box input{
+  flex:1;padding:10px;
+  background:#000;color:#fff;
+  border:1px solid #333;
+  border-radius:10px
+}
+.search-box button{
+  padding:10px 14px;
+  background:red;border:none;
+  border-radius:10px;color:#fff
+}
+
+/* SUGGESTIONS */
+#suggestions{
+  padding:0 12px 6px;
+}
+.suggestion{
+  padding:8px;
+  border-bottom:1px solid #222;
+  cursor:pointer;
+  font-size:14px;
+}
+.suggestion:hover{background:#1a1a1a}
+
+/* NAV */
+nav{
+  position:fixed;bottom:0;left:0;right:0;
+  display:flex;justify-content:space-around;
+  background:#111;padding:14px 0
+}
+nav button{
+  background:none;border:none;color:#fff;
+  font-size:14px
+}
+
+.spacer{height:140px}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">YT Music</div>
+</header>
+
+<!-- PLAYER -->
+<div id="playerBox">
+  <div class="mini-controls">
+    <button onclick="expandPlayer()">⬆</button>
+    <button onclick="closePlayer()">✕</button>
+  </div>
+  <iframe id="player"
+    allow="autoplay; encrypted-media"
+    allowfullscreen></iframe>
+</div>
+
+<!-- HOME -->
+<div id="homeFeed" class="feed"></div>
+
+<!-- SEARCH -->
+<div id="searchPage">
+  <div class="search-box">
+    <input id="searchInput" placeholder="Search songs…" oninput="onTypeSearch()">
+    <button onclick="startSearch()">Search</button>
+  </div>
+  <div id="suggestions"></div>
+  <div id="searchFeed" class="feed"></div>
+</div>
+
+<div class="spacer"></div>
+
+<nav>
+  <button onclick="goHome()">🏠 Home</button>
+  <button onclick="openSearch()">🔍 Search</button>
+</nav>
+
+<script>
+/* ================= CONFIG ================= */
+const API_KEY = "AIzaSyBc1FY-6OzcRDAPQFiok_p_h5I1RalcIc0";
+const ORIGIN = location.origin;
+
+/* ================= ELEMENTS ================= */
+const homeFeed = document.getElementById("homeFeed");
+const searchPage = document.getElementById("searchPage");
+const searchFeed = document.getElementById("searchFeed");
+const suggestionsBox = document.getElementById("suggestions");
+const playerBox = document.getElementById("playerBox");
+const player = document.getElementById("player");
+
+/* ================= STATE ================= */
+let homeToken = "";
+let searchToken = "";
+let mode = "home";
+let currentQuery = "";
+let typingTimer;
+
+/* ================= PLAYER ================= */
+function playVideo(id){
+  playerBox.style.display="block";
+  player.src =
+    `https://www.youtube-nocookie.com/embed/${id}`+
+    `?autoplay=1&rel=0&origin=${ORIGIN}`;
+  history.pushState({mode:"watch",id:id},"",`#watch=${id}`);
+}
+
+function closePlayer(){
+  player.src="";
+  playerBox.style.display="none";
+  playerBox.classList.remove("mini");
+}
+
+function expandPlayer(){
+  playerBox.classList.remove("mini");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ================= HOME ================= */
+function goHome(){
+  mode="home";
+  searchPage.style.display="none";
+  homeFeed.style.display="grid";
+  if(!homeFeed.innerHTML) loadHome();
+  history.pushState({mode:"home"},"","#home");
+}
+
+function loadHome(){
+  fetch(
+    `https://www.googleapis.com/youtube/v3/videos`+
+    `?part=snippet&chart=mostPopular&regionCode=IN`+
+    `&videoCategoryId=10&maxResults=12&pageToken=${homeToken}`+
+    `&key=${API_KEY}`
+  )
+  .then(r=>r.json())
+  .then(d=>{
+    homeToken = d.nextPageToken || "";
+    d.items.forEach(v=>{
+      const c=document.createElement("div");
+      c.className="card";
+      c.innerHTML=`
+        <img src="${v.snippet.thumbnails.medium.url}">
+        <span>${v.snippet.title}</span>`;
+      c.onclick=()=>playVideo(v.id);
+      homeFeed.appendChild(c);
+    });
+  });
+}
+
+/* ================= SEARCH ================= */
+function openSearch(){
+  mode="search";
+  homeFeed.style.display="none";
+  searchPage.style.display="block";
+  history.pushState({mode:"search"},"","#search");
+}
+
+function startSearch(){
+  currentQuery=document.getElementById("searchInput").value.trim();
+  if(!currentQuery) return;
+  searchFeed.innerHTML="";
+  searchToken="";
+  loadSearch();
+}
+
+function loadSearch(){
+  fetch(
+    `https://www.googleapis.com/youtube/v3/search`+
+    `?part=snippet&type=video`+
+    `&q=${encodeURIComponent(currentQuery)}`+
+    `&maxResults=12&pageToken=${searchToken}`+
+    `&key=${API_KEY}`
+  )
+  .then(r=>r.json())
+  .then(d=>{
+    searchToken = d.nextPageToken || "";
+    d.items.forEach(v=>{
+      const c=document.createElement("div");
+      c.className="card";
+      c.innerHTML=`
+        <img src="${v.snippet.thumbnails.medium.url}">
+        <span>${v.snippet.title}</span>`;
+      c.onclick=()=>playVideo(v.id.videoId);
+      searchFeed.appendChild(c);
+    });
+  });
+}
+
+/* ================= LIVE SUGGESTIONS ================= */
+function onTypeSearch(){
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(()=>{
+    const q=document.getElementById("searchInput").value.trim();
+    if(!q){suggestionsBox.innerHTML="";return;}
+
+    fetch(
+      `https://www.googleapis.com/youtube/v3/search`+
+      `?part=snippet&type=video&maxResults=5`+
+      `&q=${encodeURIComponent(q)}`+
+      `&key=${API_KEY}`
+    )
+    .then(r=>r.json())
+    .then(d=>{
+      suggestionsBox.innerHTML="";
+      d.items.forEach(v=>{
+        const div=document.createElement("div");
+        div.className="suggestion";
+        div.textContent=v.snippet.title;
+        div.onclick=()=>{
+          document.getElementById("searchInput").value=v.snippet.title;
+          suggestionsBox.innerHTML="";
+          startSearch();
+        };
+        suggestionsBox.appendChild(div);
+      });
+    });
+  },400);
+}
+
+/* ================= SCROLL ================= */
+window.addEventListener("scroll",()=>{
+  if(player.src){
+    if(scrollY>260) playerBox.classList.add("mini");
+    else playerBox.classList.remove("mini");
+  }
+
+  if(innerHeight+scrollY>document.body.offsetHeight-200){
+    if(mode==="home") loadHome();
+    if(mode==="search") loadSearch();
+  }
+});
+
+/* ================= BACK ================= */
+window.onpopstate=e=>{
+  if(!e.state||e.state.mode==="home") goHome();
+  if(e.state.mode==="search") openSearch();
+  if(e.state.mode==="watch") playVideo(e.state.id);
+};
+
+/* INIT */
+goHome();
+</script>
+
+</body>
+</html>
