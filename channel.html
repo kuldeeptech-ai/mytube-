@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Channel</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header><a href="index.html">⬅ Back</a></header>
+
+<div id="channelInfo"></div>
+<div id="videos" class="grid"></div>
+
+<script src="assets/app.js"></script>
+<script>
+const cid = new URLSearchParams(location.search).get("id");
+loadChannel(cid);
+</script>
+
+</body>
+</html>
