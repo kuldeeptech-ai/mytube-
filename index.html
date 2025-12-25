@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -7,22 +8,24 @@
 </head>
 <body>
 
-<header>YouTube Clone</header>
+<header>
+  <span>YouTube Clone</span>
+  <span class="toggle" onclick="toggleTheme()">🌓</span>
+</header>
 
-<div class="container">
-  <div class="search-bar">
-    <input id="q" placeholder="Search">
-    <button onclick="goSearch()">Search</button>
-  </div>
-
-  <h3>Trending</h3>
-  <div id="feed" class="grid"></div>
+<div class="categories">
+  <div class="cat" onclick="loadHome('')">All</div>
+  <div class="cat" onclick="loadHome('music')">Music</div>
+  <div class="cat" onclick="loadHome('gaming')">Gaming</div>
+  <div class="cat" onclick="loadHome('news')">News</div>
+  <div class="cat" onclick="loadHome('movies')">Movies</div>
 </div>
 
+<div id="feed" class="grid"></div>
+
 <script src="assets/app.js"></script>
-<script>
-loadTrending();
-</script>
+<script src="assets/theme.js"></script>
+<script>loadHome('');</script>
 
 </body>
 </html>
